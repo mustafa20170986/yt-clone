@@ -192,8 +192,48 @@ export class ChannelModule implements OnModuleInit, OnModuleDestroy {
           console.log('[Topic Received]:', get_like);
           this.topicchannel.ack(msg);
         } catch (error) {
-          console.error('[Topic Error] Dead-lettering message:', error.message);
-          this.topicchannel.nack(msg, false, false);
+          //define the headers for retry count
+          //initally they dont have .so will use a fallback
+          const headers = msg.properties.headers || {};
+          //extract the type of count must be number
+          let currentretrycnt: number;
+          //if headers is retry is already a number
+          if (typeof headers['x-retry-count'] === 'number') {
+            //do nothing
+            currentretrycnt = headers['x-retry-count'];
+          } else {
+            //if not a number set 0 as a string (fallback)
+            //finally convert it as base 10 numarical value
+            const fallback = headers['x-retry-count'] || '0';
+            currentretrycnt = parseInt(fallback, 10);
+          }
+          if (currentretrycnt < MAX_RETRY) {
+            const nxtretry = currentretrycnt + 1;
+            console.log(`retrying LIKE: ${nxtretry}`);
+
+            //extract the message from buffer
+            const buffercontent = msg.content;
+            //pinned head
+            const currhead = msg.properties.headers || {};
+
+            //set time out for delay
+            //and retry after a while
+            setTimeout(() => {
+              this.topicchannel.sendToQueue(topicqueue, buffercontent, {
+                headers: {
+                  ...currhead,
+                  'x-retry-count': nxtretry,
+                },
+              });
+            }, 3000);
+            this.topicchannel.ack(msg);
+          } else {
+            console.error(
+              '[Topic Error] Dead-lettering message:',
+              error.message,
+            );
+            this.topicchannel.nack(msg, false, false);
+          }
         }
       }
     });
