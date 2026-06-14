@@ -10,6 +10,7 @@ import { SubscribeModule } from './subscribe/subscribe.module';
 import { UserService } from './user/user.service';
 import { UserController } from './user/user.controller';
 import { UserModule } from './user/user.module';
+import { VideoModule } from './video/video.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -24,6 +25,7 @@ import { UserModule } from './user/user.module';
     ChannelModule,
     SubscribeModule,
     UserModule,
+    VideoModule,
   ],
 
   controllers: [AppController, ChannelController, UserController],
