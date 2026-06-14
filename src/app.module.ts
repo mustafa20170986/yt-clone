@@ -6,6 +6,10 @@ import { ChannelModule } from './channel/channel.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { ConfigModule } from '@nestjs/config';
+import { SubscribeModule } from './subscribe/subscribe.module';
+import { UserService } from './user/user.service';
+import { UserController } from './user/user.controller';
+import { UserModule } from './user/user.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -18,9 +22,11 @@ import { ConfigModule } from '@nestjs/config';
       inject: [ConfigService],
     }),
     ChannelModule,
+    SubscribeModule,
+    UserModule,
   ],
 
-  controllers: [AppController, ChannelController],
+  controllers: [AppController, ChannelController, UserController],
   providers: [AppService],
 })
 export class AppModule {}
