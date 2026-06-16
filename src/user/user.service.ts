@@ -21,4 +21,12 @@ export class UserService {
       email,
     });
   }
+  async handlevideo(videodata: {
+    channelId: string;
+    videoId: string;
+    message: string;
+  }) {
+    const { channelId, videoId, message } = videodata;
+    console.log(message);
+  }
 }
