@@ -11,7 +11,7 @@ const queuename = 'rn';
 const topicqueue = 'user_action';
 const dlxfanout = 'rnx';
 const dlxtopic = 'dlx_user_action';
-
+const MAX_RETRY = 5;
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -23,7 +23,7 @@ const dlxtopic = 'dlx_user_action';
   controllers: [ChannelController],
   providers: [
     ChannelService,
-    // --- CONSUMER 1: Direct Message (Subscriptions) ---
+    //  Direct Message (Subscriptions)
     {
       provide: 'SUBSCRIBE_NOTIFY_CONSUMER',
       useFactory: async (ConfigService: ConfigService) => {
@@ -53,7 +53,7 @@ const dlxtopic = 'dlx_user_action';
       },
       inject: [ConfigService],
     },
-    // --- CONSUMER 2: Topic Message (Likes, Comments) ---
+    // Topic Message (Likes, Comments)
     {
       provide: 'LKCMNTOPS',
       useFactory: async (ConfigService: ConfigService) => {
@@ -96,7 +96,6 @@ const dlxtopic = 'dlx_user_action';
   exports: [ChannelService],
 })
 export class ChannelModule implements OnModuleInit, OnModuleDestroy {
-  // 🟢 Added OnModuleDestroy interface
   constructor(
     @Inject('SUBSCRIBE_NOTIFY_CONSUMER')
     private readonly amqpchannel: amqp.Channel,
@@ -121,11 +120,63 @@ export class ChannelModule implements OnModuleInit, OnModuleDestroy {
           );
           this.amqpchannel.ack(msg);
         } catch (error) {
-          console.error(
-            '[Direct Error] Dead-lettering message:',
-            error.message,
-          );
-          this.amqpchannel.nack(msg, false, false);
+          //if there is failure to sending message retry
+          //retry is a property that lies inthe rmq message headers
+          //by default the retry doesnt in the msg headers
+          //so we are using a fallback so that if there is no retry count
+          //in the message headers it wont crash just it will
+          //use an {} instead of retry count
+          //next when it failed and we have retired then
+          //the retry took his place in the message heareds
+          const headers = msg.properties.headers || {};
+
+          //it figures out what current retry number is
+          //no matter how weird the msg headers is
+          let currentretry: number;
+          //if current headers is number do nothing
+          if (typeof headers['x-retry-count'] === 'number') {
+            currentretry = headers['x-retry-count'];
+          } else {
+            //else fallback set '0' which is string
+            //then clen it with numarical 10 base
+            const fallback = headers['x-retry-count'] || '0';
+            currentretry = parseInt(fallback, 10);
+          }
+          /*
+          typeof headers['x-retry-count'] === 'number'
+            ? headers['x-retry-count']
+            : parseInt(headers['x-retry-count'] || '0', 10);
+            */
+          if (currentretry < MAX_RETRY) {
+            const nxtretrycount = currentretry + 1;
+
+            console.log(`retrying : ${nxtretrycount}`);
+
+            //extracting the message content from buffer
+            const contentbuffer = msg.content;
+
+            //pinned headers
+            const currheaders = msg.properties.headers || {};
+            //publish back msg to queue set a delay for retry
+            setTimeout(() => {
+              this.amqpchannel.sendToQueue(queuename, contentbuffer, {
+                headers: {
+                  //u can use the below comment out line
+                  //without the current headers but sometimes the
+                  //message headers got undeeind and crash occour
+                  //so we extract the message content and message headers
+                  // ...msg.properties.headers,
+                  ...currheaders,
+                  'x-retry-count': nxtretrycount,
+                },
+              });
+            }, 3000);
+
+            this.amqpchannel.ack(msg);
+          } else {
+            console.log(`max retries: ${MAX_RETRY} sending to dlq`);
+            this.amqpchannel.nack(msg, false, false);
+          }
         }
       }
     });
