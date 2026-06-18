@@ -7,7 +7,7 @@ export class SubscribeController {
   @Post('sbs/:subscriberId')
   toggelsubscribe(
     @Param('subscriberId') subscriberId: string,
-    @Body('channels') channelId: string,
+    @Body('channelId') channelId: string,
   ) {
     return this.subscribeService.togglesubscribe(subscriberId, channelId);
   }
