@@ -74,5 +74,13 @@ export class ChannelModule implements OnModuleInit {
       }
     });
   }
+  async onModuleDestroy() {
+    try {
+      console.log('[RabbitMQ] Closing consumer channel cleanly...');
+      await this.amqpchannel.close();
+    } catch (error) {
+      console.error('[RabbitMQ] Error while closing channel:', error.message);
+    }
+  }
 }
 //export class ChannelModule {}

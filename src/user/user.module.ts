@@ -5,11 +5,20 @@ import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as amqp from 'amqplib';
+import {
+  subscribernotifyModel,
+  subscribernotifySchema,
+} from 'src/schema/subscribernotify.schema';
+import { subscribeModel, subscribeSchema } from 'src/schema/subscribe.schema';
 const queuename = 'user_notification_queue';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: userModel.name, schema: userShcmea }]),
+    MongooseModule.forFeature([
+      { name: userModel.name, schema: userShcmea },
+      { name: subscribernotifyModel.name, schema: subscribernotifySchema },
+      { name: subscribeModel.name, schema: subscribeSchema },
+    ]),
     ConfigModule,
   ],
   controllers: [UserController],
