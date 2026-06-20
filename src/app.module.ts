@@ -11,6 +11,8 @@ import { UserService } from './user/user.service';
 import { UserController } from './user/user.controller';
 import { UserModule } from './user/user.module';
 import { VideoModule } from './video/video.module';
+import { UrslkcmntController } from './urslkcmnt/urslkcmnt.controller';
+import { UrslkcmntModule } from './urslkcmnt/urslkcmnt.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -26,9 +28,14 @@ import { VideoModule } from './video/video.module';
     SubscribeModule,
     UserModule,
     VideoModule,
+    UrslkcmntModule,
   ],
 
-  controllers: [AppController, ChannelController, UserController],
+  controllers: [
+    AppController,
+    UrslkcmntController,
+    //ChannelController, UserController
+  ],
   providers: [AppService],
 })
 export class AppModule {}
