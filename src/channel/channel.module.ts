@@ -17,6 +17,10 @@ import { sbsModel, sbsSchema } from 'src/schema/subscribe.notify.schema';
 const queuename = 'rn';
 //this one for topic message
 const topicqueue = 'user_action';
+//dlq queue for fanout queue
+const dlxfanout = 'rnx';
+//dlq queue for topic message
+const dlxtopic = 'dlx_user_action';
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -39,9 +43,28 @@ const topicqueue = 'user_action';
         const connect = await amqp.connect(cloudamqp);
         const channel = await connect.createChannel();
         const exchange = 'SUBSCRIBED';
+        //dlq exchange for fanout
+        const dlxexchange = 'ernx';
+
+        //configure the dlq exchange and dlq queue
+        await channel.assertExchange(dlxexchange, 'direct', { durable: true });
+        await channel.assertQueue(dlxfanout, {
+          durable: true, //if failed send it to dlq exchaneg
+        });
+        //bind the dlq
+        await channel.bindQueue(dlxfanout, dlxexchange, '#');
+
+        //main queue
         await channel.assertExchange(exchange, 'direct', { durable: true });
         //here wew are cretaing queue for stroing messages
-        await channel.assertQueue(queuename, { durable: true });
+        //queue configureation with dlq
+        await channel.assertQueue(queuename, {
+          durable: true,
+          arguments: {
+            'x-dead-letter-exchange': dlxexchange,
+          },
+        });
+
         await channel.bindQueue(queuename, exchange, 'sbrn');
         return channel;
       },
@@ -56,10 +79,28 @@ const topicqueue = 'user_action';
         const connect = await amqp.connect(cloudamqp);
         const channel = await connect.createChannel();
         const exchaneg = 'LIKE_COMMENT';
+        //dlq exchange
+        const dlxotopicexchange = 'dlq_like_cmnt';
+        //configure dlq exchange
+        await channel.assertExchange(dlxotopicexchange, 'topic', {
+          durable: true,
+        });
+        //configure dlx queue
+        await channel.assertQueue(dlxtopic, {
+          durable: true,
+          arguments: {
+            'x-dead-letter-exchange': dlxotopicexchange,
+          },
+        });
+        //bind dlq
+        await channel.bindQueue(dlxtopic, dlxotopicexchange, '#');
+        //eg main queue
         //assert the channel  in the exchaneg
-        await channel.assertExchange(exchaneg, 'topic', { durable: true });
+        await channel.assertExchange(exchaneg, 'topic', {
+          durable: true,
+        });
         //assert queeu
-        await channel.assertQueue(topicqueue, { durable: true });
+        // await channel.assertQueue(topicqueue, { durable: true });
         //bidn the queeu and mwtion the wildcard
         await channel.bindQueue(topicqueue, exchaneg, 'user.*');
         //it will accpet user.like ,user.unlike user.comment etc
@@ -90,6 +131,10 @@ export class ChannelModule implements OnModuleInit {
         try {
           //decode the data (in the paylaod it is inthe binaryfrom)
           const decod_payload = JSON.parse(msg.content.toString());
+          //intentionally error for testing dlq
+          if (decod_payload.testFail === true) {
+            throw new Error('dlq test trigger ');
+          }
           console.log(decod_payload);
           await this.channelService.notifychannelonsubscribe(
             decod_payload.channelId,
@@ -97,6 +142,8 @@ export class ChannelModule implements OnModuleInit {
           );
           this.amqpchannel.ack(msg);
         } catch (error) {
+          //if error dont acknowledge the message
+          this.amqpchannel.nack(msg, false, false);
           console.log(error);
         }
       }
@@ -106,9 +153,15 @@ export class ChannelModule implements OnModuleInit {
       if (msg !== null) {
         try {
           const get_like = JSON.parse(msg.content.toString());
+          //intentionally error for dlq test
+          if (get_like.testFail === true) {
+            throw new Error('dlq test trigger for topic');
+          }
           console.log(get_like);
           this.topicchannel.ack(msg);
         } catch (error) {
+          //if error doesnt acknwoledge the message
+          this.topicchannel.nack(msg, false, false);
           console.log(error);
         }
       }
