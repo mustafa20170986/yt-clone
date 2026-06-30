@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
-import { subscribeModel } from './subscribe.schema';
+
 import { Document } from 'mongoose';
 @Schema({ timestamps: true })
 export class sbsModel extends Document {
@@ -8,6 +7,7 @@ export class sbsModel extends Document {
     type: String,
     required: true,
   })
+  //fixed
   channelId!: string;
   @Prop({ required: true })
   message!: string;
