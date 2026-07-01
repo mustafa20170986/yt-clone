@@ -5,12 +5,10 @@ import { Document } from 'mongoose';
 @Schema({ timestamps: true })
 export class sbsModel extends Document {
   @Prop({
-    type: mongoose.Schema.ObjectId,
-    ref: 'subscribeModel',
+    type: String,
     required: true,
   })
-  channelId!: //subscribeModel |
-  string;
+  channelId!: string;
   @Prop({ required: true })
   message!: string;
 }
