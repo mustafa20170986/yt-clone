@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { subscribeModel } from 'src/schema/subscribe.schema';
 import { userModel } from 'src/schema/user.schema';
 import * as amqp from 'amqplib';
+import * as crypto from 'crypto';
 @Injectable()
 export class SubscribeService {
   constructor(
@@ -38,9 +39,15 @@ export class SubscribeService {
     } else {
       findsubscription.channels.push(channelId);
       await findsubscription.save();
+      //generate uuid for business id  and the event id
+      // that for idemopotency
+      const eventuuid = crypto.randomUUID();
+      const businessuuid = crypto.randomUUID();
 
       //payload for channel for subscriber alert
       const subscribed_payload = {
+        eventId: eventuuid,
+        businessuuid: businessuuid,
         channelId: channelId,
         name: findname?.name,
         // messgae: `${findname?.name} subscribed your channel `,
@@ -53,6 +60,11 @@ export class SubscribeService {
         exchnage,
         routingKey,
         Buffer.from(JSON.stringify(subscribed_payload)),
+        {
+          //set rabbit mqs meta data to tarck the uuid
+
+          messageId: eventuuid,
+        },
       );
       return { message: 'subscribed!' };
     }
